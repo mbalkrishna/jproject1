@@ -1,0 +1,24 @@
+<?php
+/*--includes all core and common files--*/
+module_load_include('inc', 'wiacore', 'inc/core');
+module_load_include('inc', 'email_triggers', 'inc/email-templates');
+/*--/includes all core and common files--*/
+
+
+
+function email_triggers_mail($key, &$message, $params) {
+    
+	$message['subject'] = $params['subject'];
+	$message['body'] = $params['body'];
+	
+	$headers = array(
+		'MIME-Version' => '1.0',
+		'Content-Type' => 'text/html; charset=UTF-8; format=flowed',
+		'Content-Transfer-Encoding' => '8Bit',
+		'X-Mailer' => 'Drupal'
+	);
+	
+	foreach ($headers as $key => $value) {
+		$message['headers'][$key] = $value;
+	}
+}

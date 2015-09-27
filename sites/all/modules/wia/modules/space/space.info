@@ -1,0 +1,12 @@
+name = Space
+description = Includes space management funtionality, like add space. list space, delete space, etc.
+package = "WIA"
+core = 7.x
+#configure = admin
+
+; Information added by pksingh 2015-05-29
+version = "7.x.0"
+core = "7.x"
+project = "WIA"
+datestamp = "1372203950"
+

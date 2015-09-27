@@ -1,0 +1,570 @@
+<?php
+drupal_session_start();
+/*--includes all core and common files--*/
+module_load_include('inc', 'wiacore', 'inc/core');
+/*--/includes all core and common files--*/
+
+
+/*****
+#action: space_menu
+#description: register menu links.
+#author: PKS
+#created: 02 June 2015
+*****/
+ 
+function space_menu() {
+ 	$items = array();	
+	
+	$items['admin/slot-availability/%'] = array(
+		'title' => 'Manage Availablity',
+		'page callback' => 'space_admin_manage_slot_availability',
+		'access callback' => 'space_page_access',
+		'access arguments' => array('admin light','administrator'),
+		'file' => 'inc/slot-handler.inc'			
+	);
+	
+	$items['admin/get_slot_availability/%/%'] = array(
+		'page callback' => 'space_admin_get_slot_availability',
+		'delivery callback' => 'space_admin_get_slot_availability_response_handler',  
+		'type' => MENU_CALLBACK,
+		'access callback' => 'space_page_access',
+		'access arguments' => array('admin light','administrator'),	
+		'file' => 'inc/slot-handler.inc'
+	);
+	
+	$items['admin/change_slot_status'] = array(
+		'page callback' => 'space_admin_change_slot_status',
+		'delivery callback' => 'space_admin_change_slot_status_response_handler',  
+		'type' => MENU_CALLBACK,
+		'access callback' => 'space_page_access',
+		'access arguments' => array('admin light','administrator'),	
+		'file' => 'inc/slot-handler.inc'
+	);		
+	
+	$items['space-search'] = array(
+		'title' => 'Space Search',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('space_search_form'),  
+		'access callback' => 'space_page_access',
+		'access arguments' => array('all'),	
+		'file' => 'inc/space-search.inc'
+	);	
+		
+	$items['space-search-result'] = array(
+		'title' => 'Space Search Result',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('space_search_result_form'),  
+		'access callback' => 'space_page_access',
+		'access arguments' => array('all'),	
+		'file' => 'inc/space-search.inc'
+	);		
+	
+	/*--front user slot availbility calender--*/
+	
+	$items['load-slot-availability/%'] = array(
+		'title' => 'View Calender',
+		'page callback' => 'space_load_slot_availability',
+		'access callback' => 'space_page_access',
+		'access arguments' => array('all'),
+		'file' => 'inc/slot-handler.inc'			
+	);
+	
+	$items['get_slot_availability/%/%'] = array(
+		'page callback' => 'space_get_slot_availability',
+		'delivery callback' => 'space_get_slot_availability_response_handler',  
+		'type' => MENU_CALLBACK,
+		'access callback' => 'space_page_access',
+		'access arguments' => array('all'),	
+		'file' => 'inc/slot-handler.inc'
+	);	
+	
+		
+	/*--/front user slot availbility calender--*/	
+	
+	$items['gmap/%/%/%'] = array(
+		'page callback' => 'space_show_gmap',
+		'delivery callback' => 'space_show_gmap_response_handler',  
+		'type' => MENU_CALLBACK,
+		'access callback' => 'space_page_access',
+		'access arguments' => array('all'),	
+		'file' => 'inc/space-search.inc'
+	);
+		
+	$items['gmap'] = array(
+		'page callback' => 'space_show_gmap',
+		'delivery callback' => 'space_show_gmap_response_handler',  
+		'type' => MENU_CALLBACK,
+		'access callback' => 'space_page_access',
+		'access arguments' => array('all'),	
+		'file' => 'inc/space-search.inc'
+	);
+		
+  	return $items;
+}
+
+/*****
+#action: space_theme
+#description: custom templates for product/space forms.
+#author: PKS
+#created: 02 June 2015
+*****/
+function space_theme($existing, $type, $theme, $path) {	
+
+	
+	$themes['commerce_product_ui_product_form'] = array(
+		'render element' => 'form',
+		'template' => 'add-product-form',
+		'path' => drupal_get_path('module', 'space') . '/views',
+	);
+	
+	$themes['views_view__commerce_products__admin_page'] = array(
+		'template' => 'views-view--commerce-products--admin-page',
+		'path' => drupal_get_path('module', 'space') . '/views',
+		'original hook' => 'views_view',
+		'preprocess functions' => array( 'template_preprocess', 'template_preprocess_views_view'),
+		'arguments' => array('view' => NULL)
+	);		
+	
+	$themes['space_admin_manage_slot_availability'] = array( 
+		'template' => 'admin-manage-slot-availability',
+		'path'=> drupal_get_path('module', 'space').'/views',
+		'variables' => array('data' => NULL),
+		'render element' => 'content',	  
+	);	
+	
+	$themes['space_load_slot_availability'] = array( 
+		'template' => 'load-slot-availability',
+		'path'=> drupal_get_path('module', 'space').'/views',
+		'variables' => array('data' => NULL),
+		'render element' => 'content',	  
+	);	
+	
+	
+	$themes['space_search_form'] = array(
+		'template' => 'space-search-form',
+		'path' => drupal_get_path('module', 'space') . '/views',
+		'render element' => 'form'
+	);	
+	
+	$themes['space_search_result_form'] = array(
+		'template' => 'space-search-result-form',
+		'path' => drupal_get_path('module', 'space') . '/views',
+		'render element' => 'form'
+	);	
+	
+	$themes['space_search_result'] = array( 
+		'template' => 'space-search-result',
+		'path'=> drupal_get_path('module', 'space').'/views',
+		'variables' => array('data' => NULL),
+		'render element' => 'content',	  
+	);
+	 	
+   return $themes;
+}
+
+/*****
+#action: space_page_access
+#description: alter page permissions.
+#author: PKS
+#created: 15 June 2015
+*****/
+function space_page_access($arg=null){
+	
+	global $user;
+	
+	if($arg=='all' || $arg=='access content'){
+		return true;
+	}
+	
+	$allowed_roles=func_get_args();		
+	if(!empty($allowed_roles)){
+		$res=array_intersect($allowed_roles,$user->roles);
+		if(empty($res)){
+			drupal_set_message(t('Access denied.'),"error", false);
+			return false;
+		}
+		
+	}
+	return true;
+}
+
+/*****
+#action: space_form_commerce_product_ui_product_form_alter
+#description: alter default product/space form.
+#author: PKS
+#created: 02 June 2015
+*****/
+
+function space_form_commerce_product_ui_product_form_alter(&$form, &$form_state, $form_id) {
+	
+	
+	$form['sku']['#required']=0;//remove default required
+	$form['commerce_price']['und'][0]['amount']['#required']=0;
+	
+	$cur=commerce_currency_load();
+	$csym=$cur['symbol'];
+	
+	$product=$form_state['commerce_product'];
+	$productId=$product->product_id;
+	
+	
+	//alter space types
+	$form['field_space_type']['und']['#prefix'] = '<div class="checkbox checkbox-info">';
+	$form['field_space_type']['und']['#suffix'] = '</div>';
+	$form['field_space_type']['und']['#attributes']['class'][]='styled';
+		
+		$locations= get_locations('list');
+		
+		$form['field_location']['und']['#options']= array(''=>'select location')+$locations;
+	//alter locations
+	$form['field_location']['und']['#attributes']['class'][] = 'sel_dd';
+	
+	//alter title
+	$form['title']['#attributes']['class'][] = 'input';
+	$form['title']['#attributes']['placeholder'] = 'venue title';
+	
+	//alter description 
+	$form['field_description']['und'][0]['value']['#attributes']['placeholder'] = 'write a description of the venue up to 250 words';
+	
+	//alter postcode 
+	$form['field_postcode']['und'][0]['value']['#attributes']['class'][] = 'input';
+	$form['field_postcode']['und'][0]['value']['#attributes']['placeholder'] = 'postcode';
+	
+	//alter postcode 
+	$form['field_room_name']['und'][0]['value']['#attributes']['class'][] = 'input';
+	$form['field_room_name']['und'][0]['value']['#attributes']['placeholder'] = 'room identity/name';
+	
+	
+	//alter amenities
+	$amenityPrices=array();	
+	$slotPrices=array();
+	
+	if(!empty($productId)){		
+		$amenityPrices=get_amenity_prices($productId);	
+		$slotPrices=get_slot_prices($productId);
+	}
+		
+	$name = 'amenities';
+	$amenities = taxonomy_vocabulary_machine_name_load($name);
+	$tree = taxonomy_get_tree($amenities->vid);
+	$form['amenities']['#tree'] = TRUE;
+	
+	foreach ($tree as $term) {
+		$form['amenities'][$term->tid]['amenity'] = array(
+			'#type' => 'checkbox', 
+			'#title' => t($term->name), 
+			'#required' => FALSE,
+			'#prefix' => "<div class='amenity-row checkbox checkbox-info'>",			
+			'#default_value'=>$amenityPrices?$amenityPrices[$term->tid]['amenity_status']:0
+			
+		);
+		
+		$form['amenities'][$term->tid]['amenity']['#attributes']['class'][]='styled';
+		
+		$form['amenities'][$term->tid]['price'] = array(
+			'#type' => 'textfield', 
+			'#title' => null, 
+			'#required' => FALSE,
+			'#size' => 15,
+			'#prefix' => "<span class='cur'>{$csym}</span>",
+			'#suffix' => '</div>',
+			'#default_value'=>$amenityPrices?$amenityPrices[$term->tid]['price']:''
+		);  
+		
+		$form['amenities'][$term->tid]['price']['#attributes']['class'][]='input small-input';
+	}
+		
+	//alter slots
+	$name = 'time_slots';
+	$slots = taxonomy_vocabulary_machine_name_load($name);
+	$tree = taxonomy_get_tree($slots->vid);
+	
+	$form['time_slots']['#tree'] = TRUE;
+	
+	foreach ($tree as $term) {
+		$form['time_slots'][$term->tid]['slot'] = array(
+			'#type' => 'checkbox', 
+			'#title' => t($term->name), 
+			'#required' => FALSE,
+			'#prefix' => "<div class='time-slots-row checkbox checkbox-info'>",
+			'#default_value'=>$slotPrices?$slotPrices[$term->tid]['slot_status']:0		
+		);
+		
+		$form['time_slots'][$term->tid]['slot']['#attributes']['class'][]='styled';
+		
+		$form['time_slots'][$term->tid]['price'] = array(
+			'#type' => 'textfield', 
+			'#title' => null, 
+			'#required' => FALSE,
+			'#size' => 15,
+			'#prefix' =>"<span class='cur'>{$csym}</span>",
+			'#suffix' => '</div>',
+			'#default_value'=>$slotPrices?$slotPrices[$term->tid]['price']:''
+		);  
+		
+		$form['time_slots'][$term->tid]['price']['#attributes']['class'][]='input small-input';
+		
+	}  	
+	
+	//alter  capacity
+	$form['field_capacity']['und'][0]['value']['#attributes']['class'][] = 'input';
+	$form['field_capacity']['und'][0]['value']['#attributes']['placeholder'] = 'no of people';
+	
+	
+	//alter full address 
+	$form['field_full_address']['und'][0]['value']['#attributes']['placeholder'][] = 'full address of asset';
+	
+	$form['actions']['submit']['#value']='Save';
+	$form['actions']['submit']['#submit'][] = '__form_commerce_product_ui_product_form_submit';
+	$form['actions']['submit']['#validate'][] = '__form_commerce_product_ui_product_form_validate';
+	  
+}
+
+/*****
+#action: __form_commerce_product_ui_product_form_validate
+#description: custom validate handler for product/space form.
+#author: PKS
+#created: 03 June 2015
+*****/
+
+function __form_commerce_product_ui_product_form_validate($form, &$form_state) {
+	
+	//assign default SKU code
+	global $user; 	
+	
+	if(empty($form_state['values']['sku'])){
+		$form_state['values']['sku']="WIA-".$user->uid."-".time();
+	}
+	
+	//update status as pending for front users
+	if(in_array('standard user',$user->roles)){
+		$form_state['values']['status']=-1;			
+		
+	}
+	
+	//assign default price from lowest slot'prices
+	$prices=$form_state['values']['time_slots'];
+	$basePrice=0;
+	if($prices){
+		$tmpPrices=array();
+		foreach($prices as $termId=>$tvalue){				
+			if($form_state['values']['time_slots'][$termId]['slot']){			
+				$tmpPrices[]=$form_state['values']['time_slots'][$termId]['price'];
+			}
+		
+		}
+		if(!empty($tmpPrices))
+		$basePrice=min($tmpPrices);			
+	}
+	
+	if($basePrice){
+		$form_state['values']['commerce_price']['und'][0]['amount']=$basePrice;//update base price	
+
+	}else{
+		form_set_error("time-slots-row","Slot price can not be empty. Please select at least one slot with valid price.");
+	}
+  
+}
+
+
+/*****
+#action: __form_commerce_product_ui_product_form_submit
+#description: custom submit handler for product/space form.
+#author: PKS
+#created: 02 June 2015
+*****/
+function __form_commerce_product_ui_product_form_submit($form, &$form_state) {
+
+	global $user; 
+	
+	$product=$form_state['commerce_product'];	
+	$productId=$product->product_id;
+
+	/*--manage amenities prices--*/
+	$amenities=$form_state['values']['amenities'];
+	//delete old amenities
+	$rdDel=db_delete('amenity_prices')
+			->condition('product_id',$productId)
+			->execute();  
+	
+	//update new amenities
+	if($amenities){
+		foreach($amenities as $amenityId=>$amenityData){
+			
+						
+			$rs=db_insert('amenity_prices')->fields(array(
+			'product_id' => $productId,
+			'amenity_id' => $amenityId,
+			'amount' => ($amenityData['amenity'] && $amenityData['price'])?(double)$amenityData['price']:null,
+			'currency' => $form_state['values']['commerce_price']['und'][0]['currency_code'],
+			'amenity_status' => $amenityData['amenity']))
+		  ->execute(); 
+						  
+		}
+	}
+	/*--/manage amenities prices--*/
+	
+	
+	/*--manage slot prices--*/
+	$slots=$form_state['values']['time_slots'];
+	//delete old slots
+	$rdDel=db_delete('slot_prices')
+			->condition('product_id',$productId)
+			->execute();  
+	
+	//update new slots
+	if($slots){
+		foreach($slots as $slotId=>$slotData){
+			
+			$rs=db_insert('slot_prices')->fields(array(
+			'product_id' => $productId,
+			'slot_id' => $slotId,
+			'amount' =>  ($slotData['slot'] && $slotData['price'])?(double)$slotData['price']:null,
+			'currency' => $form_state['values']['commerce_price']['und'][0]['currency_code'],
+			'slot_status' => $slotData['slot'],
+			'price_updated'=> time()))
+		  ->execute(); 
+						  
+		}
+	}
+	/*--/manage slot prices--*/
+	
+	/*--manage latlong--*/
+
+	if(isset($product->field_full_address['und'][0]['value']) || isset($product->field_postcode['und'][0]['value'])){
+		
+		try{
+			
+			$gapi_key=variable_get('google_map_api_key');
+			$mapURL="https://maps.google.com/maps/api/geocode/json";
+			
+			$address=$product->field_full_address['und'][0]['value'];
+			
+			$formatedAddress=preg_replace("/\r\n|\r|\n/",' ',$address);						
+			$formatedAddress=str_replace(' ','+',strip_tags($formatedAddress));		
+			
+			$productTitle=$product->title;
+			$postCode=urlencode($product->field_postcode['und'][0]['value']);
+			
+			$dataURL=$mapURL;//"?address=".$formatedAddress;
+			$dataURL.="?components=country:UK|postal_code:{$postCode}";
+			$dataURL.="&sensor=false&key=".$gapi_key;				
+			
+			$jsonLocData=file_get_contents($dataURL);
+					
+			
+			$formatedAddress2=preg_replace("/\r\n|\r|\n/",'<br/>',$address);
+			$mapTitle="<strong>".$productTitle."</strong><br/>".$formatedAddress2;
+			
+			$objLocData=json_decode($jsonLocData);
+			
+			$lat='';
+			$long='';		
+			
+			if($objLocData && $objLocData->status=='OK'){	
+				
+				$objLatLong=$objLocData->results[0];
+				$objLatLong=$objLatLong->geometry->location;
+				
+				$lat=$objLatLong->lat;
+				$long=$objLatLong->lng;
+				
+			}
+				
+			//update lat and long
+			$rs=db_select('asset_latlongs','latlong')
+			->fields('latlong')
+			->condition('product_id',$productId)
+			->execute()
+			->fetchAll();
+							
+			if($rs){	
+									
+				$uRs=db_update('asset_latlongs')->fields(array(				
+				'latitude' =>$lat,
+				'longitude'=>$long,
+				'address'=>$mapTitle))
+				->condition('product_id',$productId)
+				->execute(); 
+			  
+			}else{
+				
+				$iRs=db_insert('asset_latlongs')->fields(array(
+				'product_id' => $productId,
+				'latitude' =>$lat,
+				'longitude'=>$long,
+				'address'=>$mapTitle))
+				->execute();
+				
+			}
+			
+		}catch(Execption $e){}
+	}
+	
+	
+	
+	/*--/manage latlong--*/
+}
+
+
+/*****
+#action: space_form_commerce_product_product_delete_form_alter
+#description: override product delete form.
+#author: PKS
+#created: 03 June 2015
+*****/
+
+function space_form_commerce_product_ui_product_delete_form_alter(&$form, &$form_state, $form_id){
+	$form['description']['#markup']="Deleting this product cannot be undone.";
+	$form['actions']['submit']['#submit'][] = '__form_commerce_product_ui_product_delete_form_submit';
+	$form['actions']['submit']['#validate'][] = '__form_commerce_product_ui_product_delete_form_validate';
+  
+}
+
+
+
+/*****
+#action: __form_commerce_product_ui_product_delete_form_validate
+#description: validate product with order ref before delete.
+#author: PKS
+#created: 03 June 2015
+*****/
+function __form_commerce_product_ui_product_delete_form_validate($form, &$form_state) {
+	
+	//check order ref with the product before deleteing
+  
+}
+
+
+
+/*****
+#action: __form_commerce_product_ui_product_delete_form_submit
+#description: perform actions after deleting the product like deleting amenities, availability and slots.
+#author: PKS
+#created: 02 June 2015
+*****/
+function __form_commerce_product_ui_product_delete_form_submit($form, &$form_state) {
+
+	$product=$form_state['product'];
+	$productId=$product->product_id;
+
+	//delete all related amenities
+	$rdDel=db_delete('amenity_prices')
+			->condition('product_id',$productId)
+			->execute();  	
+	
+	//delete all related slots
+	$rdDel=db_delete('slot_prices')
+			->condition('product_id',$productId)
+			->execute();
+			
+	//delete the product
+	if(commerce_product_delete($productId)){
+		$succMsg="The product has been deleted successfully.";
+		drupal_set_message($succMsg,'del success');
+	}else{
+		$succMsg="The product could not be deleted. Please try again.";
+		drupal_set_message($succMsg,'del error');
+	}
+	
+}

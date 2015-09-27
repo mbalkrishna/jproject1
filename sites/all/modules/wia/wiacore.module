@@ -1,0 +1,24 @@
+<?php
+/*****
+#action: wiacore_init
+#description: load required assets.
+#author: PKS
+#created: 02 June 2015
+*****/
+function wiacore_init(){
+	//add required lib for admin
+	if(arg(0)=='admin'){
+		drupal_add_library('system', 'ui');
+		drupal_add_library('system', 'ui.datepicker');
+	}	
+	//drupal_add_library('system', 'ui.slider');
+}
+
+
+function wiacore_menu_alter(&$items) {
+  if (isset($items['node/add/product-display'])) {
+    unset($items['node/add/product-display']);
+  }
+}
+
+?>

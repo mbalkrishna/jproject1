@@ -1,0 +1,777 @@
+<?php
+/*--includes all core and common files--*/
+module_load_include('inc', 'wiacore', 'inc/core');
+/*--/includes all core and common files--*/
+
+
+/*****
+#action: global_init
+#description: load required assets.
+#author: PKS
+#created: 02 June 2015
+*****/
+function global_init(){
+
+	if(function_exists('commerce_currency_load')){
+		$cur=commerce_currency_load();	
+		define('CURRENCY',$cur['name']);
+		define('CURRENCY_CODE',$cur['code']);
+		define('CURRENCY_SYMBOL',$cur['symbol']);
+	}	
+}
+
+
+/**
+ * Implements hook_menu().
+ */
+function global_menu(){
+
+	$items = array();			
+	
+	$items['admin/refund-policy'] = array(		
+		'title' => t('Refund Policy'),
+		'description' => 'Refund Policy',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('refund_policy_form'),
+		'access callback' => 'global_page_access',
+		'access arguments' => array('admin light','administrator'),
+		'file' => 'inc/refund-policy.inc'
+	);	
+	
+	return $items;
+}
+
+
+/*****
+#action: global_page_access
+#description: alter page permissions.
+#author: PKS
+#created: 15 June 2015
+*****/
+function global_page_access($arg=null){
+	
+	global $user;
+	
+	if($arg=='all' || $arg=='access content'){
+		return true;
+	}
+	
+	$allowed_roles=func_get_args();		
+	if(!empty($allowed_roles)){
+		$res=array_intersect($allowed_roles,$user->roles);
+		if(empty($res)){
+			drupal_set_message(t('Access denied.'),"error", false);
+			return false;
+		}
+		
+	}
+	return true;
+}
+
+
+
+
+/*****
+#action: global_form_taxonomy_form_term_alter
+#sescription: to hide unused fields from default taxonomy form.
+#author: PKS
+#created: 29 May 2015
+*****/
+
+function global_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id) {
+	// hide the desciption field and relations group field
+	
+	if(isset($form['actions']['submit']['#value']) && $form['actions']['submit']['#value']=='Save'){
+		
+		$form['description']['#access'] = FALSE;	  
+		unset($form['relations']); // Unset the existing relations fieldset. 
+		
+		// Set hidden values for all the sub-fields of the relations fieldset.
+		$form['weight'] = array(
+			'#type' => 'value',
+			'#value' => $form['#term']['weight'],
+		);
+	
+		$parent=$form['#term']['parent']?$form['#term']['parent'][0]:0;
+		$form['parent'] = array(
+			'#type' => 'value',
+			'#value' =>$parent
+		);
+		
+		$form['#after_build'][] = '_after_taxonomy_form_build';
+	
+	}
+}
+
+function _after_taxonomy_form_build($form, &$form_state) {
+	
+	$form['path']['#access'] = FALSE;	
+	return $form;
+}
+
+
+
+/*****
+#action: global_admin_menu_output_alter
+#description: assign different menu to different user role.
+#author: PKS
+#created: 03 June 2015
+*****/
+
+function global_admin_menu_output_alter(&$content) {//show specific menu to admininistrator and admin light
+
+	global $user;
+	
+	if(in_array('administrator', $user->roles)){
+		$content['menu'] = admin_menu_links_menu(admin_menu_tree('management'));
+		$content['menu']['#theme'] = 'admin_menu_links';
+		$content['menu']['#weight'] = 0;
+		$content['menu']['#sorted'] = TRUE;
+		
+	
+	}elseif(in_array('admin light', $user->roles)){
+		$content['menu'] = admin_menu_links_menu(admin_menu_tree('menu-mini-management'));
+		$content['menu']['#theme'] = 'admin_menu_links';
+		$content['menu']['#weight'] = 0;
+		$content['menu']['#sorted'] = TRUE;
+		
+	}  
+}
+
+
+/*****
+#action: global_form_alter
+#description: change user profile edit form
+#author: Pawan
+#created: 15 June 2015
+*****/
+function global_form_user_profile_form_alter(&$form, $form_state, $form_id) {
+     	
+	
+	
+	global $user;
+	
+	if(!in_array('administrator',$user->roles) && !in_array('admin light',$user->roles)){
+	
+		hide($form['account']['pass']);
+		hide($form['account']['current_pass_required_values']);
+		hide($form['account']['current_pass']);
+			
+		//$form['field_first_name'][LANGUAGE_NONE][0]['value']['#title']=FALSE;
+		$form['field_first_name'][LANGUAGE_NONE][0]['value']['#description']=FALSE;		
+		$form['field_first_name'][LANGUAGE_NONE][0]['value']['#attributes']['placeholder']='first name';
+		$form['field_first_name'][LANGUAGE_NONE][0]['value']['#attributes']['class'][]='input';	
+		$form['field_first_name'][LANGUAGE_NONE][0]['value']['#theme_wrappers']=array();
+		
+		
+		//$form['field_surname'][LANGUAGE_NONE][0]['value']['#title']=FALSE;
+		$form['field_surname'][LANGUAGE_NONE][0]['value']['#description']=FALSE;
+		$form['field_surname'][LANGUAGE_NONE][0]['value']['#attributes']['placeholder']='surname';
+		$form['field_surname'][LANGUAGE_NONE][0]['value']['#attributes']['class'][]='input';
+		$form['field_surname'][LANGUAGE_NONE][0]['value']['#theme_wrappers']=array();
+		
+		/*$form['field_birthday'][LANGUAGE_NONE][0]['value']['#title']='date of birth';
+		$form['field_birthday'][LANGUAGE_NONE][0]['value']['#description']=FALSE;
+		$form['field_birthday'][LANGUAGE_NONE][0]['value']['#attributes']['placeholder']='day / month / year';
+		$form['field_birthday'][LANGUAGE_NONE][0]['value']['#attributes']['class'][]='input';
+		$form['field_birthday'][LANGUAGE_NONE][0]['value']['#theme_wrappers']=array();*/
+		
+		//$form['account']['mail']['#title']=FALSE;
+		$form['account']['mail']['#description']=FALSE;
+		$form['account']['mail']['#attributes']['placeholder']='email address';
+		$form['account']['mail']['#attributes']['class'][]='input';
+		$form['account']['mail']['#theme_wrappers']=array();
+		$form['account']['mail']['#attributes']['disabled']='disabled';
+		
+		
+		$form['actions']['submit']['#value']='Update Profile';
+		$form['actions']['submit']['#attributes']['class'][]='btn margintop15';
+	}
+	
+    	
+}
+
+
+/*****
+#action: global_form_user_register_alter
+#description: override user signup page
+#author: PKS
+#created: 14 July 2015
+*****/
+function global_form_user_register_form_alter(&$form, $form_state, $form_id) {
+   
+	global $user;
+	
+	if(!in_array('administrator',$user->roles) && !in_array('admin light',$user->roles)){
+	
+		//$form['field_first_name'][LANGUAGE_NONE][0]['value']['#title']=FALSE;
+		$form['field_first_name'][LANGUAGE_NONE][0]['value']['#description']=FALSE;
+		
+		$form['field_first_name'][LANGUAGE_NONE][0]['value']['#attributes']['placeholder']='first name';
+		$form['field_first_name'][LANGUAGE_NONE][0]['value']['#attributes']['class'][]='input';	
+		$form['field_first_name'][LANGUAGE_NONE][0]['value']['#theme_wrappers']=array();
+		
+		
+		//$form['field_surname'][LANGUAGE_NONE][0]['value']['#title']=FALSE;
+		$form['field_surname'][LANGUAGE_NONE][0]['value']['#description']=FALSE;
+		$form['field_surname'][LANGUAGE_NONE][0]['value']['#attributes']['placeholder']='surname';
+		$form['field_surname'][LANGUAGE_NONE][0]['value']['#attributes']['class'][]='input';
+		$form['field_surname'][LANGUAGE_NONE][0]['value']['#theme_wrappers']=array();
+		
+		/*$form['field_birthday'][LANGUAGE_NONE][0]['value']['#title']='date of birth';
+		$form['field_birthday'][LANGUAGE_NONE][0]['value']['#description']=FALSE;
+		$form['field_birthday'][LANGUAGE_NONE][0]['value']['#attributes']['placeholder']='day / month / year';
+		$form['field_birthday'][LANGUAGE_NONE][0]['value']['#attributes']['class'][]='input';
+		$form['field_birthday'][LANGUAGE_NONE][0]['value']['#theme_wrappers']=array();*/
+		
+		//$form['account']['mail']['#title']=FALSE;
+		$form['account']['mail']['#description']=FALSE;
+		$form['account']['mail']['#attributes']['placeholder']='email address';
+		$form['account']['mail']['#attributes']['class'][]='input';
+		$form['account']['mail']['#theme_wrappers']=array();
+		
+		
+		$form['actions']['submit']['#value']='Sign Up';
+		$form['actions']['submit']['#attributes']['class'][]='btn btn-signup';
+		
+		$form['#submit'][] = '_user_register_submit';
+	}
+	
+  
+}
+
+function _user_register_submit($form, &$form_state){
+	$form_state['redirect'] = 'user';
+}
+
+/*****
+#action: global_form_user_login_alter
+#description: override user login form
+#author: PKS
+#created: 14 July 2015
+*****/
+
+function global_form_user_login_alter(&$form, $form_state, $form_id) {
+  	
+	//$form['name']['#title']=FALSE;
+	$form['name']['#description']=FALSE;
+	
+	$form['name']['#attributes']['placeholder']='email address';
+	$form['name']['#attributes']['class'][]='input';	
+	$form['name']['#theme_wrappers']=array();
+	
+	
+	//$form['pass']['#title']=FALSE;
+	$form['pass']['#description']=FALSE;
+	$form['pass']['#attributes']['placeholder']='password';
+	$form['pass']['#attributes']['class'][]='input';
+	$form['pass']['#theme_wrappers']=array();
+	
+	
+	$form['actions']['submit']['#value']='sign in';
+	$form['actions']['submit']['#attributes']['class'][]='btn margintop15';
+	
+}
+
+
+/*****
+#action: global_form_user_login_alter
+#description: override user login form
+#author: PKS
+#created: 14 July 2015
+*****/
+
+function global_form_user_pass_alter(&$form, $form_state, $form_id) {
+  	
+	//$form['name']['#title']=FALSE;
+	$form['name']['#description']=FALSE;
+	
+	$form['name']['#attributes']['placeholder']='email address';
+	$form['name']['#attributes']['class'][]='input';	
+	$form['name']['#theme_wrappers']=array();	
+	
+	$form['actions']['submit']['#value']='send password';
+	$form['actions']['submit']['#attributes']['class'][]='btn margintop15';
+}
+
+
+/*****
+#action: global_form_change_pwd_page_form_alter
+#description: override change password form
+#author: PKS
+#created: 14 July 2015
+*****/
+
+function global_form_change_pwd_page_form_alter(&$form, $form_state, $form_id) {
+  	
+	//$form['current_pass']['#title']=FALSE;
+	$form['current_pass']['#attributes']['placeholder']='current password';
+	$form['current_pass']['#attributes']['class'][]='input';	
+	$form['current_pass']['#theme_wrappers']=array();	
+	
+	$form['submit']['#value']='change password';
+	$form['submit']['#attributes']['class'][]='btn margintop15';
+	
+
+}
+
+/*****
+#action: global_form_change_pwd_page_user_pass_reset_alter
+#description: override reset password form
+#author: PKS
+#created: 14 July 2015
+*****/
+
+function global_form_change_pwd_page_user_pass_reset_alter(&$form, $form_state, $form_id) {
+  	
+	$form['actions']['submit']['#value']='login';
+	$form['actions']['submit']['#attributes']['class'][]='btn margintop15';
+	
+
+}
+
+
+
+/*****
+#action: global_form_system_site_information_settings_alter
+#description: override and extend features in site settings
+#author: PKS
+#created: 15 June 2015
+*****/
+
+function global_form_system_site_information_settings_alter(&$form, &$form_state, $form_id) {
+	
+	
+	/*--site logo--*/
+	
+	$form['site'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('Logo'),
+	);
+	
+	$form['site']['site_logo'] = array(
+		'#type' => 'file',
+		'#title' => t('Choose Logo'),
+		'#description' => "Recommended Image Size - 80 x 89 px"
+	);
+		
+	$siteLogo=variable_get('site_logo');
+	if($siteLogo){
+		
+		$siteLogoPath=file_create_url($siteLogo);
+		
+		$form['site']['site_logo_display'] = array(
+			'#type' => 'markup',
+			'#markup' => "<img src='{$siteLogoPath}' width='100'/>"
+		);
+	}
+	
+	$form['site']['site_logo_hidden'] = array(
+		'#type' => 'hidden',
+		'#default_value' => $siteLogo
+	);
+	
+	
+	$form['site']['site_logo_text'] = array(
+		'#type' => 'file',
+		'#title' => t('Choose Logo Text'),
+		'#description' => "Size - 290 x 38 px"
+	);
+		
+	
+	$siteLogoText=variable_get('site_logo_text');
+	if($siteLogoText){
+		
+		$siteLogoTextPath=file_create_url($siteLogoText);
+		
+		$form['site']['site_logo_text_display'] = array(
+			'#type' => 'markup',
+			'#markup' => "<img src='{$siteLogoTextPath}' width='100'/>"
+		);
+	}
+	
+	$form['site']['site_logo_text_hidden'] = array(
+		'#type' => 'hidden',
+		'#default_value' => $siteLogoText
+	);
+	/*--/site logo--*/
+	
+	
+	/*--site front logo--*/
+	
+	/*$form['site_front'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('Front Page Setup'),
+	);
+	
+	$form['site_front']['site_front_logo'] = array(
+		'#type' => 'file',
+		'#title' => t('Choose Logo'),
+		'#description' => "Recommended Image Size - 223 x 247 px"
+	);
+		
+	$siteFrontLogo=variable_get('site_front_logo');
+	if($siteFrontLogo){
+		
+		$siteFrontLogoPath=file_create_url($siteFrontLogo);
+		
+		$form['site_front']['site_front_logo_display'] = array(
+			'#type' => 'markup',
+			'#markup' => "<img src='{$siteFrontLogoPath}' width='100'/>"
+		);
+	}
+	
+	$form['site_front']['site_front_logo_hidden'] = array(
+		'#type' => 'hidden',
+		'#default_value' => $siteFrontLogo
+	);
+	
+	
+	$form['site_front']['site_front_logo_text'] = array(
+		'#type' => 'file',
+		'#title' => t('Choose Logo Text'),
+		'#description' => "Recommended Image Size - 805 x 102 px"
+	);		
+	
+	$siteFrontLogoText=variable_get('site_front_logo_text');
+	if($siteFrontLogoText){
+		
+		$siteFrontLogoTextPath=file_create_url($siteFrontLogoText);
+		
+		$form['site_front']['site_front_logo_text_display'] = array(
+			'#type' => 'markup',
+			'#markup' => "<img src='{$siteFrontLogoTextPath}' width='100'/>"
+		);
+	}
+	
+	$form['site_front']['site_front_logo_text_hidden'] = array(
+		'#type' => 'hidden',
+		'#default_value' => $siteFrontLogoText
+	);
+	
+	$form['site_front']['site_front_logo_bg'] = array(
+		'#type' => 'file',
+		'#title' => t('Choose Front Background'),
+		'#description' => "Recommended Image Size - 1600 x 1029 px"
+	);		
+	
+	$siteFrontBG=variable_get('site_front_logo_bg');
+	if($siteFrontBG){
+		
+		$siteFrontBGPath=file_create_url($siteFrontBG);
+		
+		$form['site_front']['site_front_logo_bg_display'] = array(
+			'#type' => 'markup',
+			'#markup' => "<img src='{$siteFrontBGPath}' width='100'/>"
+		);
+	}
+	
+	$form['site_front']['site_front_logo_bg_hidden'] = array(
+		'#type' => 'hidden',
+		'#default_value' => $siteFrontBG
+	);
+	*/
+	
+	/*--/site front logo--*/
+	
+
+	/*$form['social'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('Social'),
+	);
+
+	
+	$form['social']['facebook_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Facebook'),
+		'#default_value' => variable_get('facebook_url'),
+	);
+	
+	$form['social']['twitter_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Twitter'),
+		'#default_value' => variable_get('twitter_url'),
+	);
+	
+	$form['social']['google_plus_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Google Plus'),
+		'#default_value' => variable_get('google_plus_url'),
+	);*/
+	
+	
+	$form['google_map'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('Google Map'),
+	);
+
+	
+	$form['google_map']['google_map_api_key'] = array(
+		'#type' => 'textfield',
+		'#title' => t('API Key'),
+		'#default_value' => variable_get('google_map_api_key')
+	);
+		
+	
+	$form['search_page'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('Search Page'),
+	);
+
+	
+	$form['search_page']['search_page_headline'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Page Headline'),
+		'#rows' => 2,
+		'#cols' => 20,
+		'#default_value' => variable_get('search_page_headline'),
+	);
+	
+	$form['footer'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('Footer'),
+	);
+	
+	
+	$form['footer']['copyright'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Copyright'),
+		'#rows' => 2,
+		'#cols' => 20,
+		'#default_value' => variable_get('copyright'),
+	);
+	
+	
+	
+	$form['#submit'][]='global_form_system_site_information_settings_submit';
+		
+	
+}
+
+
+// handle form submition 
+function global_form_system_site_information_settings_submit($form, &$form_state){
+    
+    $values = $form_state['values'];
+	
+	
+	/*--site logo--*/
+	$logoURL= $values['site_logo_hidden'];	
+	if(!empty($_FILES['files']['name']['site_logo'])){
+		
+		$newfile = file_save_upload('site_logo', array (
+			'file_validate_extensions'    => array ('bmp jpg jpeg png gif')
+		));		
+		
+		if($newfile){		
+			
+			$newfile->status = 1;
+			file_save($newfile);
+		
+			$dest = 'public://';		
+			$result = file_copy($newfile, $dest, FILE_EXISTS_REPLACE);
+			$logoURL=$result->uri;
+			
+		}
+	}
+	
+	 if(!empty($logoURL)){
+		variable_set('site_logo', $logoURL);
+	 }
+	 
+	 
+	 
+	 $logoTextURL= $values['site_logo_text_hidden'];
+	
+	if(!empty($_FILES['files']['name']['site_logo_text'])){
+		
+		$newfile = file_save_upload('site_logo_text', array (
+			'file_validate_extensions'    => array ('bmp jpg jpeg png gif')
+		));		
+		
+		if($newfile){		
+			
+			$newfile->status = 1;
+			file_save($newfile);
+		
+			$dest = 'public://';		
+			$result = file_copy($newfile, $dest, FILE_EXISTS_REPLACE);
+			$logoTextURL=$result->uri;
+			
+		}
+	}
+	
+	if(!empty($logoTextURL)){
+		variable_set('site_logo_text', $logoTextURL);
+	}
+	/*--site log--*/ 
+	
+	
+	
+	/*--site front logo--*/
+	/*$frontLogoURL= $values['site_front_logo_hidden'];	
+	if(!empty($_FILES['files']['name']['site_front_logo'])){
+		
+		$fnewfile = file_save_upload('site_front_logo', array (
+			'file_validate_extensions'    => array ('bmp jpg jpeg png gif')
+		));		
+		
+		if($fnewfile){		
+			
+			$fnewfile->status = 1;
+			file_save($fnewfile);
+		
+			$dest = 'public://';		
+			$result = file_copy($fnewfile, $dest, FILE_EXISTS_REPLACE);
+			$frontLogoURL=$result->uri;
+			
+		}
+	}
+	
+	 if(!empty($frontLogoURL)){
+		variable_set('site_front_logo', $frontLogoURL);
+	 }
+	 
+	 
+	 
+	$frontLogoTextURL= $values['site_front_logo_text_hidden'];
+	
+	if(!empty($_FILES['files']['name']['site_front_logo_text'])){
+		
+		$fnewfile = file_save_upload('site_front_logo_text', array (
+			'file_validate_extensions'    => array ('bmp jpg jpeg png gif')
+		));		
+		
+		if($fnewfile){		
+			
+			$fnewfile->status = 1;
+			file_save($fnewfile);
+		
+			$dest = 'public://';		
+			$result = file_copy($fnewfile, $dest, FILE_EXISTS_REPLACE);
+			$frontLogoTextURL=$result->uri;
+			
+		}
+	}
+	
+	if(!empty($frontLogoTextURL)){
+		variable_set('site_front_logo_text', $frontLogoTextURL);
+	}
+	
+	
+	$frontLogoBgURL= $values['site_front_logo_bg_hidden'];
+	
+	if(!empty($_FILES['files']['name']['site_front_logo_bg'])){
+		
+		$fbgnewfile = file_save_upload('site_front_logo_bg', array (
+			'file_validate_extensions'    => array ('bmp jpg jpeg png gif')
+		));		
+		
+		if($fbgnewfile){		
+			
+			$fbgnewfile->status = 1;
+			file_save($fbgnewfile);
+		
+			$dest = 'public://';		
+			$result = file_copy($fbgnewfile, $dest, FILE_EXISTS_REPLACE);
+			$frontLogoBgURL=$result->uri;
+			
+		}
+	}
+	
+	if(!empty($frontLogoBgURL)){
+		variable_set('site_front_logo_bg', $frontLogoBgURL);
+	}
+	*/
+	
+	/*--site_front front log--*/  
+	 
+		
+   /*if(!empty($values['facebook_url'])){
+        variable_set('facebook_url', $values['facebook_url']);
+    }
+    
+    if(!empty($values['twitter_url'])){
+        variable_set('twitter_url', $values['twitter_url']);
+    }
+
+    if(!empty($values['google_plus_url'])){
+        variable_set('google_plus_url', $values['google_plus_url']);
+    }*/
+	
+	if(!empty($values['google_map_api_key'])){
+        variable_set('google_map_api_key', $values['google_map_api_key']);
+    }
+	
+		
+    if(!empty($values['search_page_headline'])){
+        variable_set('search_page_headline', $values['search_page_headline']);
+    }	
+	
+	if(!empty($values['copyright'])){
+        variable_set('copyright', $values['copyright']);
+    }
+	
+
+}
+
+
+
+/*****
+#action: global_query_alter
+#description: hide product display content from admin content list
+#author: PKS
+#created: 15 June 2015
+*****/
+
+function global_query_alter(QueryAlterableInterface $query) {
+
+	if (current_path() === 'admin/content') {
+	
+		$tables = $query->getTables();
+		$node_exists = FALSE;
+		foreach ($tables as $alias => $table) {
+			if ($table['table'] == 'node') {
+				$node_exists = TRUE;
+				break;
+			}
+		}
+		
+		if ($node_exists) {
+			$query->where($alias.'.type NOT IN (:types)', array(':types' => 'product_display'));
+		}
+	}
+}
+
+
+
+/*****
+#action: global_commerce_currency_info_alter
+#description: override currency configration
+#author: PKS
+#created: 15 June 2015
+*****/
+
+
+function global_commerce_currency_info_alter(&$currencies){
+	$currencies['GBP']['format_callback'] = 'global_commerce_currency_format';
+	$currencies['GBP']['decimals'] = 0;
+}
+
+/*****
+#action: global_commerce_currency_format
+#description: format row prices
+#author: PKS
+#created: 15 June 2015
+*****/
+
+function global_commerce_currency_format($amount, $currency = NULL, $object = NULL, $convert = TRUE) {
+	
+	$price = number_format($amount, 2, $currency['decimal_separator'], false);
+	$replacements = array(
+	'@price' => $price,
+	'@negative' => $amount < 0 ? '-' : '',
+	);
+	
+	return trim(t('@negative @price', $replacements));
+}

@@ -1,0 +1,107 @@
+#ui-datepicker-div{
+	z-index: 100000;
+}
+
+.commerce-product-title-label, .field-label{display:none;}
+
+#calendar_wraper .cal {
+	text-align: right;
+}
+#slot_content a {
+	text-decoration: none;
+}
+#actions {
+	margin-bottom: 10px;
+}
+.booked div {
+	background:url(../images/booked-bg.png);
+	border: 1px solid #676767;
+}
+.unavailable div {
+	background:url(../images/unavailable-bg.png);
+	color: #FFF;
+	border: 1px solid #676767;
+}
+.available div {
+	border: 1px solid #676767;
+}
+
+.cur-selection div {
+	background:url(../images/selection-bg.png);
+	border: 1px solid #676767;
+}
+
+.available-help {
+	border: 1px solid #676767;
+	color: #FFF;
+	width: 15px;
+	display:inline-block;
+	height:15px;
+}
+
+.unavailable-help {
+	background:url(../images/unavailable-bg.png);
+	width: 15px;
+	display:inline-block;
+	border: 1px solid #676767;
+	height:15px;
+}
+
+.booked-help {
+	background:url(../images/booked-bg.png);
+	width: 15px;
+	display:inline-block;
+	border: 1px solid #676767;
+	height:15px;
+}
+
+.cur-selection-help {
+	background:url(../images/selection-bg.png);
+	width: 15px;
+	display:inline-block;
+	border: 1px solid #676767;
+	height:15px;
+}
+
+
+
+.color-text{ display:inline-block; padding-left:15px; padding-right:25px; position: relative; top: -3px;}
+  
+.vjs-control-bar, .vjs-error-display{display:none;}
+.page-checkout-complete .with-tabs{display:none;}
+.commerce-price-formatted-components{text-transform:lowercase!important;}
+.commerce-price-formatted-components .component-title{text-transform:lowercase!important;}
+#views-form-commerce-cart-form-default #edit-actions input{text-transform:lowercase;}
+.page-cart .with-tabs{text-transform:lowercase;}
+.page-checkout .with-tabs{text-transform:lowercase;}
+.page-checkout .checkout-help{text-transform:lowercase;}
+.page-checkout-review .pane-title{
+	
+	text-transform:lowercase;
+	    display: block;
+    width: 100%;
+    padding: 0;
+    margin-bottom: 20px;
+    font-size: 21px;
+    line-height: inherit;
+    color: #333333;
+    border: 0;
+    border-bottom: 1px solid #e5e5e5;
+    font-weight: normal;
+	
+	}
+.page-checkout-review #edit-buttons input{text-transform:lowercase;}
+.page-checkout-review .commerce_payment label{text-transform:lowercase;}
+.cart-table tfoot .grand-total{text-transform:lowercase!important;}
+.checkout_completion_message{text-transform:lowercase!important;}
+
+.page-my-bookings .with-tabs{text-transform:lowercase;}
+.page-my-bookings .cart-table thead{text-transform:lowercase;}
+.page-my-bookings .view-booking{text-transform:lowercase;}
+.page-my-bookings .cancel-booking{text-transform:lowercase;}
+
+.page-booking-details .with-tabs{text-transform:lowercase;}
+.page-cancel-booking .with-tabs{text-transform:lowercase;}
+
+
+

@@ -1,0 +1,458 @@
+<?php
+drupal_session_start();
+/*--includes all core and common files--*/
+module_load_include('inc', 'wiacore', 'inc/core');
+/*--/includes all core and common files--*/
+
+
+/*****
+#action: booking_menu
+#description: register menu links.
+#author: PKS
+#created: 02 June 2015
+*****/
+ 
+function booking_menu() {
+ 	$items = array();	
+			
+	$items['lock_my_slots'] = array(
+		'page callback' => 'booking_lock_my_slots',
+		'delivery callback' => 'booking_lock_my_slots_response_handler',  
+		'type' => MENU_CALLBACK,
+		'access callback' => 'booking_page_access',
+		'access arguments' => array('all'),	
+		'file' => 'inc/booking.inc'
+	);
+	
+	$items['booking-details/%'] = array(		
+		'title' => t('Booking Details'),
+		'description' => 'Booking Details',
+		'page callback' => 'booking_booking_details',
+		'access callback' => 'booking_page_access',
+		'access arguments' => array('access content'),
+		'file' => 'inc/booking.inc'
+	);
+	
+	$items['download-booking-details/%/download_pdf'] = array(		
+		'title' => t('Booking Details'),
+		'description' => 'Booking Details',
+		'page callback' => 'booking_download_booking_details',
+		'access callback' => 'booking_page_access',
+		'access arguments' => array('access content'),
+		'file' => 'inc/booking.inc'
+	);
+	
+	
+	
+	$items['cancel-booking/%'] = array(		
+		'title' => t('Cancel Booking'),
+		'description' => 'Cancel Booking',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('cancel_booking_form'),
+		'access callback' => 'booking_page_access',
+		'access arguments' => array('administrator','admin light','standard user'),
+		'file' => 'inc/cancel-booking.inc'
+	);	
+	
+	//admin links
+	
+	$items['admin/booking-details/%'] = array(		
+		'title' => t('Booking Details'),
+		'description' => 'Booking Details',
+		'page callback' => 'admin_booking_booking_details',
+		'access callback' => 'booking_page_access',
+		'access arguments' => array('administrator','admin light'),
+		'file' => 'inc/booking.inc'
+	);
+	
+	$items['admin/cancel-booking/%'] = array(		
+		'title' => t('Cancel Booking'),
+		'description' => 'Cancel Booking',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('admin_cancel_booking_form'),
+		'access callback' => 'booking_page_access',
+		'access arguments' => array('administrator','admin light'),
+		'file' => 'inc/cancel-booking.inc'
+	);
+	
+  	return $items;
+}
+
+/*****
+#action: booking_theme
+#description: custom templates for product/space forms.
+#author: PKS
+#created: 02 June 2015
+*****/
+function booking_theme($existing, $type, $theme, $path) {	
+	
+	
+	$themes['cancel_booking_form'] = array(
+		'template' => 'cancel-booking-form',
+		'path' => drupal_get_path('module', 'booking') . '/views',
+		'render element' => 'form'
+	);	
+	
+	$themes['admin_cancel_booking_form'] = array(
+		'template' => 'admin-cancel-booking-form',
+		'path' => drupal_get_path('module', 'booking') . '/views',
+		'render element' => 'form'
+	);
+	
+   return $themes;
+
+
+}
+
+/*****
+#action: booking_page_access
+#description: alter page permissions.
+#author: PKS
+#created: 15 June 2015
+*****/
+function booking_page_access($arg=null){
+	
+	global $user;
+	
+	if($arg=='all' || $arg=='access content'){
+		return true;
+	}
+	
+	$allowed_roles=func_get_args();	
+		
+	if(!empty($allowed_roles)){
+		$res=array_intersect($allowed_roles,$user->roles);
+		if(empty($res)){
+			drupal_set_message(t('Access denied.'),"error", false);
+			return false;
+		}
+		
+	}
+	return true;
+}
+
+
+
+/*****
+#action: booking_form_commerce_cart_add_to_cart_form_alter
+#description: alter add to cart form.
+#author: PKS
+#created: 02 June 2015
+*****/
+
+function booking_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state, $form_id) {
+	
+	$form['base_price'] = array(
+		'#type' => 'hidden',
+		'#default_value' =>''
+	);	
+	$form['base_price']['#attributes']['class'][] = 'hidden-base-price';	
+	
+	$form['amenity_total_price'] = array(
+		'#type' => 'hidden',
+		'#default_value' =>''
+	);
+	$form['amenity_total_price']['#attributes']['class'][] = 'hidden-amenity-total-price';
+	
+	$form['amenities'] = array(
+		'#type' => 'hidden',
+		'#default_value' =>''
+	);
+	$form['amenities']['#attributes']['class'][] = 'hidden-amenities';	
+	
+	$form['time_slots'] = array(
+		'#type' => 'hidden',
+		'#default_value' =>''
+	);
+	$form['time_slots']['#attributes']['class'][] = 'hidden-time-slots';
+		
+	$form['#validate'][] = 'booking_commerce_cart_add_to_cart_form_validate';
+	$form['#submit'][] = '_commerce_cart_add_to_cart_form_submit';
+	$form['submit']['#attributes']['value'] = t('Book Now');
+
+}
+
+function _commerce_cart_add_to_cart_form_submit($form, &$form_state){
+	//reset temp/extra data
+	unset($_SESSION['cart_extra_info']);	
+	$form_state['redirect'] = 'cart';
+}
+
+
+/*****
+#action: booking_commerce_cart_add_to_cart_form_validate
+#description: validate cart form.
+#author: PKS
+#created: 10 July 2015
+*****/
+function booking_commerce_cart_add_to_cart_form_validate($form, &$form_state) {
+	
+	if(empty($form_state['values']['base_price'])){
+		 form_set_error('hidden_base_price', 'Base price can not be empty.');
+	}
+	
+	if(empty($form_state['values']['time_slots'])){
+		 form_set_error('hidden_time_slots', 'Please select at least one slot to proceed the booking.');
+	}
+	
+}
+
+
+
+function booking_form_commerce_checkout_form_checkout_alter(&$form, &$form_state, $form_id) {
+	
+	global $user;
+	$userData = user_load($user->uid);
+	
+	$userName=$userData->field_first_name['und']['0']['value'];
+	
+	if($userData->field_surname['und']['0']['value'])
+	$userName.=' '.$userData->field_surname['und']['0']['value'];	
+	
+	$form['customer_profile_billing']['commerce_customer_address']['und'][0]['name_block']['name_line']['#value']=$userName;	
+	
+	$form['customer_profile_billing']['commerce_customer_address']['und'][0]['name_block']['#attributes']['class'][]='input';
+	$form['customer_profile_billing']['commerce_customer_address']['und'][0]['street_block']['#attributes']['class'][]='input';
+	$form['customer_profile_billing']['commerce_customer_address']['und'][0]['locality_block']['#attributes']['class'][]='input';
+	$form['customer_profile_billing']['commerce_customer_address']['und'][0]['country']['#attributes']['class'][]='sel_dd';		
+}
+
+/*****
+#action: booking_commerce_product_calculate_sell_price_line_item_alter
+#description: alter the price in list and single product page.
+#author: PKS
+#created: 02 June 2015
+*****/
+
+function booking_commerce_product_calculate_sell_price_line_item_alter($line_item){
+	
+	
+	if(isset($_SESSION['cart_extra_info'])){
+		$line_item->data['slot_details']=$_SESSION['cart_extra_info'];		
+	}
+		
+	if(!empty($_POST)){
+		$line_item->data['req_data']=$_POST;
+		
+		//override amenites price on server side
+		$amenites=$_POST['amenities'];
+		$productId=$line_item->commerce_product['und'][0]['product_id'];
+		$amenityTotalPricePerSlot=get_amenites_price_by_aids_and_pid(explode(",",$amenites),$productId);
+		
+		$totalSlots=1;
+		if($line_item->data['slot_details']['slots']){
+			$totalSlots=count($line_item->data['slot_details']['slots']);
+		}
+		
+		$ameTotalPrice=$amenityTotalPricePerSlot*$totalSlots;
+		$line_item->data['req_data']['amenity_total_price']=$ameTotalPrice;			
+	}	
+	
+}
+
+/*****
+#action: booking_commerce_cart_line_item_refresh
+#description: alter the price in cart & order.
+#author: PKS
+#created: 02 June 2015
+*****/
+
+function booking_commerce_cart_line_item_refresh($line_item, $order_wrapper){
+	
+	global $user;
+	
+	if(isset($line_item->data['slot_details']) && !empty($line_item->data['slot_details'])){
+		
+		$arrReq=$line_item->data['req_data'];
+		$arrSlotData=$line_item->data['slot_details'];	
+		
+			
+		//get amenities price
+		$amenityTotalPrice=0;
+		if($arrReq && !empty($arrReq['amenity_total_price'])){
+			$amenityTotalPrice=$arrReq['amenity_total_price'];
+		}
+		
+		//get slot price	
+		$slotTotalPrice=$arrSlotData['slot_total_price'];
+		if(empty($slotTotalPrice)){
+			$slotTotalPrice=$line_item->commerce_unit_price[LANGUAGE_NONE][0]['amount'];
+		}
+		
+		//update cart total
+		$cartTotal=$amenityTotalPrice+$slotTotalPrice;	
+		
+		$line_item->commerce_unit_price[LANGUAGE_NONE][0]['data']['components'][0]['price']['amount'] =$cartTotal;
+		$line_item->commerce_unit_price[LANGUAGE_NONE][0]['amount'] =$cartTotal;
+		
+		//Re-Calculate VAT
+		$vat=$line_item->commerce_unit_price[LANGUAGE_NONE][0]['data']['components'][1]['price']['data']['tax_rate']['rate'];
+		$catGrandTotal=$cartTotal*$vat;
+		$line_item->commerce_unit_price[LANGUAGE_NONE][0]['data']['components'][1]['price']['amount']=$catGrandTotal;
+		
+		commerce_line_item_save($line_item);
+		entity_get_controller('commerce_line_item')->resetCache(array($line_item->line_item_id));
+		
+		//update slot booking with order id and line item id
+		$arrSlotsToBook=$arrSlotData['slots'];	
+		
+		if($arrSlotsToBook){
+		
+			$urs=db_update('slot_bookings')->fields(array(
+			'notes' => 'Booking is in processs',
+			'uid' => $user->uid,
+			'line_item_id' => $line_item->line_item_id,
+			'order_id' => $line_item->order_id,
+			'vat' => $vat))		
+			->condition('id',$arrSlotsToBook, 'IN')
+			->execute();		
+		}
+	}
+}
+
+
+
+/*****
+#action: global_commerce_payment_order_paid_in_full
+#description: format row prices
+#author: PKS
+#created: 27 July 2015
+*****/
+/*function booking_commerce_payment_order_paid_in_full($transaction) {	
+	
+}*/
+
+
+/*****
+#action: booking_commerce_payment_transaction_presave
+#description: check transaction status and update slots
+#author: PKS
+#created: 27 July 2015
+*****/
+function booking_commerce_payment_transaction_presave($transaction) {
+  	
+	global $user;
+	
+	//update slots if transaction is proceed successfully...
+	if(strtolower($transaction->status)=='success' && $user){	
+		
+		$orderId=$transaction->order_id;
+		$order=commerce_order_load($orderId);		
+		if($order){		
+			$lineItems=$order->commerce_line_items;				
+			if($lineItems){
+				foreach($lineItems['und'] as $_lineItem){
+					
+					$line_item_id=$_lineItem['line_item_id'];					
+					$urs=db_update('slot_bookings')->fields(array(
+					'status' => 'Booked',
+					'notes' => 'Booking is confirmed',				
+					'uid' => $user->uid))					
+					->condition('line_item_id',$_lineItem['line_item_id'], '=')
+					->condition('order_id',$orderId, '=')
+					->execute();				
+					
+				}
+			}							
+				
+		}	
+				
+	}	
+	
+}
+
+
+/*****
+#action: booking_commerce_checkout_complete
+#description: checkout complete
+#author: PKS
+#created: 27 July 2015
+*****/
+function booking_commerce_checkout_complete($order) {	
+	//send booking email	
+	send_booking_email($order);	
+}
+
+
+
+/*****
+#action: booking_commerce_checkout_pane_info
+#description: used to show order details after checkout
+#author: PKS
+#created: 27 July 2015
+*****/
+
+function booking_commerce_checkout_pane_info() {
+	
+	$panes['booking'] = array(
+		'title' => t('Custom Checkout Pane'),
+		'page' => 'checkout',
+		'weight' => 10,
+		'file' => 'inc/checkout-pane.inc',
+		'base' => 'booking_pane',
+	);
+	return $panes;
+}
+
+
+
+/*****
+#action: booking_rules_action_info
+#description: used release slots
+#author: PKS
+#created: 12 Aug 2015
+*****/
+
+function booking_rules_action_info(){
+ 
+  $actions = array(
+    'unblock_session_slots' => array(
+        'label' => t('Unlock slots from current session'),
+        'group' => t('Booking'),
+  		)
+	);
+
+  return $actions;
+}
+
+/**
+ * action: Unblock slots.
+ */
+ 
+ 
+function unblock_session_slots(){
+	unlock_curret_slots();
+}
+
+/*****
+#action: booking_commerce_cart_product_remove
+#description: used release slots
+#author: PKS
+#created: 12 Aug 2015
+*****/
+
+function booking_commerce_cart_product_remove($order, $product, $quantity, $line_item) {
+  
+	$orderId=$order->order_id;
+	$lineItemId=$line_item->line_item_id;
+	unlock_slots_by_order_id_and_line_item_id($orderId,$lineItemId);
+	
+}
+
+/**
+ * Main menu
+ * Implements theme__menu_link().
+ */
+function booking_menu_link__user_menu($variables) {
+  
+  print_r($variables);die;
+  $element = $variables['element'];
+  $sub_menu = '';
+
+  if ($element['#below']) {
+    $sub_menu = drupal_render($element['#below']);
+  }
+  $element['#localized_options']['html'] = TRUE;
+  $output = l('<em>' . $element['#title'] . '</em>', $element['#href'], $element['#localized_options']);
+  return $output . $sub_menu . "\n";
+}

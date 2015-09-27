@@ -1,0 +1,12 @@
+name = Email Triggers
+description = This is used to send custom emails for various events.
+package = "WIA"
+core = 7.x
+#configure = admin
+
+; Information added by pksingh 2015-08-25
+version = "7.x.0"
+core = "7.x"
+project = "WIA"
+datestamp = "1372203950"
+
